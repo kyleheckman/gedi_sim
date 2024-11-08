@@ -43,7 +43,39 @@ def get_intensity_bins(photons, center):
 
 	return arr
 
-def simulate_waveforms(block, noise=True, saveFiles=False):
+def simulate_waveform(photons, center, noise=True):
+	intensity_bins = get_intensity_bins(photons, center)
+
+	pulse = [gauss_weight(np.square(n),sigma=SIGMA_P) for n in np.arange(-30,30)] #61ns pulse centered on 0
+	nfw = np.convolve(pulse, intensity_bins[1])	# noise-free waveform
+	res = [nfw]
+
+	if noise:
+		noise_wf = add_noise(nfw, SIGMA_N, 0)
+		res.append(noise_wf)
+
+	return res
+
+
+# ========== / For testing / ==========
+
+def plot_waveforms(wf_arr, size, saveFiles=None):
+	if size == 2:
+		fig, ax = plt.subplots(2)
+		ax[0].plot(wf_arr[0])
+		ax[1].plot(wf_arr[1])
+	else:
+		fig, ax = plt.subplots()
+		ax.plot(wf_arr[0])
+
+	if saveFiles != None:
+		fn = f'{OUTPUT}waveform_{saveFiles[0]}_{saveFiles[1]}.png'
+		plt.savefig(fn)
+	else:
+		plt.show()
+	plt.close()
+
+def simulate_block(block, noise=True, saveFiles=False):
 	if not os.path.exists(f'{OUTPUT}'):
 		os.makedirs(f'{OUTPUT}')
 
@@ -54,29 +86,13 @@ def simulate_waveforms(block, noise=True, saveFiles=False):
 		if len(photons)==0:
 			continue
 
-		intensity_bins = get_intensity_bins(photons, center)
+		res = simulate_waveform(photons, center, noise=noise)
 
-		pulse = [gauss_weight(np.square(n),sigma=SIGMA_P) for n in np.arange(-30,30)] #61ns pulse centered on 0
-		nfw = np.convolve(pulse, intensity_bins[1])	# noise-free waveform
-		
-		if noise:
-			noise_wf = add_noise(nfw, SIGMA_N, 0)
-
-			fig, ax = plt.subplots(2)
-			ax[1].plot(noise_wf)
-			ax[0].plot(nfw)
-		else:
-			fig, ax = plt.subplots(1)
-			ax.plot(nfw)
-
+		svf = None
 		if saveFiles:
-			fn = f'{OUTPUT}waveform_{center[0]}_{center[1]}.png'
-			plt.savefig(fn)
-		else:
-			plt.show()
-
-		plt.close()
-
+			svf = center
+		
+		plot_waveforms(res, len(res), saveFiles=svf)
 
 if __name__ == '__main__':
 	img_fn = f'{TARGET}camera/2023_SJER_6_{BLOCK}_image.tif'
@@ -85,4 +101,4 @@ if __name__ == '__main__':
 	block = gedi_block.Block(img_fn,pc_fn)
 	block.photons[:,3] = block.photons[:,3]/100		#scale intensity values
 
-	simulate_waveforms(block, noise=False)
+	simulate_block(block)
