@@ -9,8 +9,7 @@ import scipy.stats as stats
 
 import gedi_block
 import bh_sim
-import simulation
-import read_colorized_pc
+import las_tools
 
 
 l1bdir = 'gedi_data/GEDI01_B_002-20241107_214221/'
@@ -26,8 +25,8 @@ class Block():
 	def __init__(self, img_fn, pc_fn):#, pos_matrix, bounds, kdtree, photons):
 		self.cam_file = img_fn
 		self.pc_file = pc_fn
-		self.pos_matrix, self.bounds = simulation.get_pos_matrix(img_fn)
-		self.kdtree, self.photons = read_colorized_pc.get_pc_data(pc_fn, generate_kdtree=True)
+		self.pos_matrix, self.bounds = las_tools.get_pos_matrix(img_fn)
+		self.kdtree, self.photons = las_tools.get_pc_data(pc_fn, generate_kdtree=True)
 		# self.pulse_centers = self.get_pulse_centers(self.bounds, self.pos_matrix)
 		# self.pulse_returns = get_photons_in_pulses(self)
 
