@@ -21,14 +21,14 @@ FWIDTH=23	# footprint width in meters
 FWHM=14	# pulse FWHM in nanoseconds
 SIGMA_P = FWHM/2.354
 
-class Block():
-	def __init__(self, img_fn, pc_fn):#, pos_matrix, bounds, kdtree, photons):
-		self.cam_file = img_fn
-		self.pc_file = pc_fn
-		self.pos_matrix, self.bounds = las_tools.get_pos_matrix(img_fn)
-		self.kdtree, self.photons = las_tools.get_pc_data(pc_fn, generate_kdtree=True)
-		# self.pulse_centers = self.get_pulse_centers(self.bounds, self.pos_matrix)
-		# self.pulse_returns = get_photons_in_pulses(self)
+# class Block():
+# 	def __init__(self, img_fn, pc_fn):#, pos_matrix, bounds, kdtree, photons):
+# 		self.cam_file = img_fn
+# 		self.pc_file = pc_fn
+# 		self.pos_matrix, self.bounds = las_tools.get_pos_matrix(img_fn)
+# 		self.kdtree, self.photons, self.gnd_kd, self.ground = las_tools.get_pc_data(pc_fn, generate_kdtree=True)
+# 		# self.pulse_centers = self.get_pulse_centers(self.bounds, self.pos_matrix)
+# 		# self.pulse_returns = get_photons_in_pulses(self)
 
 def gauss_weight(d2, sigma):
 	return np.exp(-1*d2/(2*np.square(sigma)))/(np.sqrt(2*np.pi)*sigma)
@@ -38,16 +38,19 @@ def get_blocks_w_data(pc_dir):
 	return fl[:,3:5]
 
 def get_result_mask(arr, block_coords):
-	tmp = arr[:,2:]/1000
+	tmp = arr[:,2:4]/1000
 	tmp = tmp.astype(int)*1000
 	return np.isin(tmp, block_coords).all(axis=1)
 
 def gen_rx_parameters(fk, block_coords):
 	#samples = np.random.randint(len(fk['rx_sample_start_index']), size=size)
 
-	parameters = np.zeros((len(fk['rx_sample_start_index']),4))
+
+
+	parameters = np.zeros((len(fk['rx_sample_start_index']),5))
 	parameters[:,0] = np.array(fk['rx_sample_start_index'])
 	parameters[:,1] = np.array(fk['rx_sample_count'])
+	parameters[:,4] = np.array(fk['geolocation']['degrade'])
 
 	begin = utm.from_latlon(np.array(fk['geolocation']['latitude_bin0']),np.array(fk['geolocation']['longitude_bin0']))
 	end = utm.from_latlon(np.array(fk['geolocation']['latitude_lastbin']),np.array(fk['geolocation']['longitude_lastbin']))
@@ -60,8 +63,20 @@ def gen_rx_parameters(fk, block_coords):
 
 	mask = get_result_mask(parameters, block_coords)
 
+	print(f'Before mask {len(parameters)}')
+
 	parameters = parameters[mask]
+
+	print(f'After mask {len(parameters)}')
+
+	parameters = parameters[parameters[:,4] == 0]
+
+	print(f'After degrade {len(parameters)}')
+
 	parameters = parameters[parameters[:,1] > 701]
+
+	print(f'After filter {len(parameters)}')
+
 	return parameters
 
 
@@ -76,6 +91,11 @@ if __name__ == '__main__':
 			key = list(f.keys())[0]
 
 			waveform = np.array(f[key]['rxwaveform'])
+
+			flags = list(f[key]['geolocation']['degrade'])
+			samples = list(f[key]['rx_sample_count'])
+			print(f'{len(flags)} of {len(samples)} FLAGS: {flags}')
+
 			rx_params = gen_rx_parameters(f[key], block_coords)
 			print(f'{len(rx_params)} located within blocks')
 
@@ -93,7 +113,7 @@ if __name__ == '__main__':
 				if len(gedi_wf) == 0:
 					continue
 
-				block = Block(img_fn, pc_fn)
+				block = gedi_block.Block(img_fn, pc_fn)
 
 				for wf in gedi_wf:
 					center = wf[2:]
@@ -103,20 +123,6 @@ if __name__ == '__main__':
 					if len(photons) == 0:
 						print('--> No photons detected')
 						continue
-
-					# zmin = int(np.min(photons[:,2])-5)
-					# zmax = int(np.max(photons[:,2])+5)
-					# bins = np.arange(zmin, zmax,step=0.15)
-					# tmp = np.zeros((2, len(bins)))
-					# tmp[0] = bins
-
-					# wint = [[p[2], p[3]*gauss_weight(np.square(p[0]-center[0])+np.square(p[1]-center[1]),sigma=0.25*FWIDTH)] for p in photons]
-					# for p in wint:
-					# 	bucket = int(np.ceil((zmax-p[0])/0.15))
-					# 	tmp[1][bucket] += p[1]
-
-					# pulse = [gauss_weight(np.square(n),sigma=STD_P) for n in np.arange(-30,30)] #61ns pulse centered on 0
-					# nfw = np.convolve(pulse,tmp[1])
 
 					sim_wf = bh_sim.simulate_waveform(photons, center, noise=False)
 

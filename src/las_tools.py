@@ -4,7 +4,7 @@ import numpy as np
 from scipy.spatial import KDTree
 import rasterio
 
-# Credit to Nestor Porras-Diaz (@ZaidUD) for developing these functions and the HHDC simulator that formed the basis for this work
+# Credit to Nestor Porras-Diaz (@ZaidUD) for developing the HHDC simulator that provided the initial basis for this GEDI simulator
 
 # ========== / LAZ file support functions / ==========
 class Lidar():
@@ -27,6 +27,8 @@ class Lidar():
             points = points[dsIndxs]
 
         self.points = points.T
+        self.ground = lasData.xyz[lasData.classification == 2].T
+        self.groundIntensity = lasData.intensity[lasData.classification == 2]
 
         self.dataTops = [lasData.header.mins, lasData.header.maxs]
         self.time = lasData.gps_time
@@ -40,6 +42,7 @@ def get_pc_data(pc_path, includeColor=False, generate_kdtree=True):
     lidar = Lidar(pc_path)
 
     photons = np.concatenate([lidar.points.T, lidar.intensity.reshape(-1, 1)], axis=1)
+    ground = np.concatenate([lidar.ground.T, lidar.groundIntensity.reshape(-1, 1)], axis=1)
     #include RGB color data
     if includeColor:
         photons = np.concatenate([photons, lidar.red.reshape(-1, 1), lidar.green.reshape(-1, 1), lidar.blue.reshape(-1, 1)], axis=1)
@@ -49,10 +52,12 @@ def get_pc_data(pc_path, includeColor=False, generate_kdtree=True):
 
     if generate_kdtree:
         kdtree = KDTree(photons[...,:2])
+        gnd_kd = KDTree(ground[...,:2])
     else:
         kdtree = None
+        gnd_kd = None
 
-    return kdtree, photons
+    return kdtree, photons, gnd_kd, ground
 
 # ========== / TIF file support functions / ==========
 def get_image_information(img_fn):

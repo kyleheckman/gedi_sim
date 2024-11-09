@@ -11,17 +11,18 @@ import las_tools
 FWIDTH = 24	# footprint width in meters
 FWHM = 15.6	# pulse width
 
-ACROSS_SPACING = 100
-ALONG_SPACING = FWIDTH
+ACROSS_SPACING = 600
+ALONG_SPACING = 60
 
 class Block():
 	def __init__(self, img_fn, pc_fn):
 		self.cam_file = img_fn
 		self.pc_file = pc_fn
 		self.pos_matrix, self.bounds = las_tools.get_pos_matrix(img_fn)
-		self.kdtree, self.photons = las_tools.get_pc_data(pc_fn, generate_kdtree=True)
+		self.kdtree, self.photons, self.gnd_kd, self.ground = las_tools.get_pc_data(pc_fn, generate_kdtree=True)
 		self.pulse_centers = self.get_pulse_centers(self.bounds, self.pos_matrix)
-		self.pulse_returns = get_photons_in_pulses(self)
+		self.pulse_returns = self.get_photons_in_pulses(self)
+		self.ground_returns = self.get_photons_in_pulses(self, ground=True)
 
 	def get_pulse_centers(self, bounds, pos_matrix):
 		pulse_centers = []
@@ -32,14 +33,20 @@ class Block():
 
 		return pulse_centers
 
-def get_photons_in_pulses(block):
-	pulse_returns = np.zeros([np.shape(block.pulse_centers)[0], np.shape(block.pulse_centers)[1]], dtype='object')
+	def get_photons_in_pulses(self, block, ground=False):
+		pulse_returns = np.zeros([np.shape(block.pulse_centers)[0], np.shape(block.pulse_centers)[1]], dtype='object')
 
-	for indx in range(np.shape(block.pulse_centers)[0]):
-		photons = block.kdtree.query_ball_point([block.pulse_centers[indx][0], block.pulse_centers[indx][1]], r=0.5*FWIDTH)
-		pulse_returns[indx,0], pulse_returns[indx,1] = [block.pulse_centers[indx][0], block.pulse_centers[indx][1]], photons
+		kd = block.kdtree
+		if ground:
+			kd = block.gnd_kd
 
-	return pulse_returns
+		for indx in range(np.shape(block.pulse_centers)[0]):
+			photons = kd.query_ball_point([block.pulse_centers[indx][0], block.pulse_centers[indx][1]], r=0.5*FWIDTH)
+			pulse_returns[indx,0], pulse_returns[indx,1] = [block.pulse_centers[indx][0], block.pulse_centers[indx][1]], photons
+
+		return pulse_returns
+
+# ========== / For testing / ==========
 
 def plot_photons(ind_in_kdtree, photons):
 	photons_to_plot = photons[ind_in_kdtree]
@@ -55,13 +62,12 @@ def plot_photons(ind_in_kdtree, photons):
 	
 	plt.show()
 
-
 if __name__ == '__main__':
 	data_dir = 'data/raw/SJER/2023-04/'
 	img_fn = f'{data_dir}camera/2023_SJER_6_251000_4106000_image.tif'
 	pc_fn = f'{data_dir}lidar/NEON_D17_SJER_DP1_251000_4106000_classified_point_cloud_colorized.laz'
 
-	block = Block(img_fn, pc_fn,)
+	block = Block(img_fn, pc_fn)
 	pulse_returns = get_photons_in_pulses(block)
 
 	im = rasterio.open(img_fn)
