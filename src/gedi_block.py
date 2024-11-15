@@ -7,9 +7,9 @@ import rasterio
 import las_tools
 
 
-# GEDI LiDAR Parameters
-FWIDTH = 24	# footprint width in meters
-FWHM = 15.6	# pulse width
+# LiDAR Parameters
+FWIDTH = 23	# footprint width in meters
+FWHM = 7	# pulse width
 
 ACROSS_SPACING = 600
 ALONG_SPACING = 60

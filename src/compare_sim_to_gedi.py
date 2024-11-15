@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
 			print(f'Checking block E: {np.array(coord).astype(int)[0]} N: {np.array(coord).astype(int)[1]}')
 			
-			gedi_wf = tmp_params = {key: value[mask] for key, value in tmp_params.items()}
+			gedi_wf = {key: value[mask] for key, value in tmp_params.items()}
 			print(f'--> Located {len(gedi_wf['start_indx'])} returns')
 
 			if len(gedi_wf['start_indx']) == 0:
