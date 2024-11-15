@@ -13,6 +13,7 @@ import las_tools
 
 
 l1bdir = 'data/gedi/GEDI01_B_002-20241108_175212/'
+l2adir = 'data/gedi/GEDI02_A_002-20241110_023846/'
 l1bdata = 'GEDI01_B_2023036011021_O23498_03_T11222_02_005_02_V002_subsetted.h5'
 
 datadir = 'data/raw/SJER/2023-04/'
@@ -42,10 +43,11 @@ def get_result_mask(arr, block_coords):
 	tmp = tmp.astype(int)*1000
 	return np.isin(tmp, block_coords).all(axis=1)
 
-def gen_rx_parameters(fk, block_coords):
+def groups_exist(f, data_arr):
+	
+
+def gen_1b_parameters(fk, block_coords):
 	#samples = np.random.randint(len(fk['rx_sample_start_index']), size=size)
-
-
 
 	parameters = np.zeros((len(fk['rx_sample_start_index']),5))
 	parameters[:,0] = np.array(fk['rx_sample_start_index'])
@@ -79,6 +81,10 @@ def gen_rx_parameters(fk, block_coords):
 
 	return parameters
 
+def read_h5_data(f):
+	data_dict = {}
+	
+	return
 
 if __name__ == '__main__':
 
@@ -91,12 +97,7 @@ if __name__ == '__main__':
 			key = list(f.keys())[0]
 
 			waveform = np.array(f[key]['rxwaveform'])
-
-			flags = list(f[key]['geolocation']['degrade'])
-			samples = list(f[key]['rx_sample_count'])
-			print(f'{len(flags)} of {len(samples)} FLAGS: {flags}')
-
-			rx_params = gen_rx_parameters(f[key], block_coords)
+			rx_params = gen_1b_parameters(f[key], block_coords)
 			print(f'{len(rx_params)} located within blocks')
 
 			for coord in block_coords:
