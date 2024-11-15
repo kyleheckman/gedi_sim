@@ -46,13 +46,6 @@ def get_rx_parameters(data, coords):
 
 	converted = utm.from_latlon(lat, lon)
 	parameters = np.column_stack([converted[0], converted[1]]).astype(int)
-	# print(len(parameters))
-	# tmp = parameters[parameters[:,0] > 317000]
-	# print(len(tmp))
-	# tmp = tmp[tmp[:,1] < 4097000]
-	# print(len(tmp))
-	# print(tmp)
-
 
 	mask = get_result_mask(parameters, coords)
 	parameters = parameters[mask]
@@ -70,8 +63,6 @@ if __name__ == '__main__':
 
 	lvis_data = lvis_reader.read_legacy_lvis(f'{lvis_dir}{wav}','1.03')
 	rx_coords, rx = get_rx_parameters(lvis_data, block_coords)
-	#print(np.min(rx_coords[:,0]), np.max(rx_coords[:,0]))
-	#print(np.min(rx_coords[:,1]), np.max(rx_coords[:,1]))
 
 	for coord in block_coords:
 			img_fn = f'{neon_dir}camera/2021_TEAK_5_{coord[0]}_{coord[1]}_image.tif'
