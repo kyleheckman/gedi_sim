@@ -12,6 +12,9 @@ FWIDTH = 25
 FWHM = 15
 SIGMA_P = FWHM/2.354
 
+ACROSS_SPACING = 600
+ALONG_SPACING = 60
+
 def gauss_weight(d2, sigma):
 	return np.exp(-1*d2/(2*np.square(sigma)))/(np.sqrt(2*np.pi)*sigma)
 
@@ -19,6 +22,15 @@ def get_bins(photons):
 		zmin = int(np.min(photons[:,2])-5)
 		zmax = int(np.max(photons[:,2])+5)
 		return (zmin, zmax)
+
+def get_centers(block):
+	centers = []
+
+	for indx in np.arange(int(0.5*FWIDTH), np.shape(block.pos_matrix)[0], ACROSS_SPACING):
+		for indy in np.arange(int(0.5*FWIDTH), np.shape(block.pos_matrix)[1], ALONG_SPACING):
+			centers.append([block.pos_matrix[indx, indy, 0], block.pos_matrix[indx, indy, 1]])
+
+	return centers
 
 class Waveform():
 	def __init__(self, photons, collected, gnd_phot, ground):
@@ -89,7 +101,8 @@ if __name__ == '__main__':
 	pc_fn = f'{target}lidar/NEON_D17_SJER_DP1_{bl}_classified_point_cloud_colorized.laz'
 
 	block = pc_block.Block(img_fn, pc_fn)
-	pulses = pc_block.Pulses(block)
+	centers = get_centers(block)
+	pulses = pc_block.Pulses(block, centers)
 
 	for indx in range(len(pulses.pulse_centers)):
 		if len(pulses.ret_photons[indx].photons) == 0:

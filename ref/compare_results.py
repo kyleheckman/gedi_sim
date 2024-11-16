@@ -71,22 +71,35 @@ if __name__ == '__main__':
 				pcorr = stats.pearsonr(sim_wf.nfw, data.waveform[sh_start:sh_end])
 				print(f'Corr: {pcorr[0]}')
 
-				fig, ax = plt.subplots(3, constrained_layout=True)
-				fig.suptitle(f'Waveform Comparison for Center: E: {np.array(lat_lon).astype(int)[0]} N: {np.array(lat_lon).astype(int)[1]}')
+				diff = [sim_wf.rh[1] - coord_params['rh'][indx][25], sim_wf.rh[2] - coord_params['rh'][indx][50], sim_wf.rh[4] - coord_params['rh'][indx][99]]
+				print(f' RH25 {diff[0]} | RH50 {diff[1]} | RH99 {diff[2]}')
 
-				ax[0].set_title('Noise-Free Simluated Waveform')
-				ax[0].set_ylabel('Intensity')
-				ax[0].plot(sim_wf.nfw)
+				sim_metrics['corr'].append(pcorr[0])
+				sim_metrics['rh25'].append(diff[0])
+				sim_metrics['rh50'].append(diff[1])
+				sim_metrics['rh99'].append(diff[2])
 
-				ax[1].set_title('Cropped GEDI Waveform')
-				ax[1].set_ylabel('DN')
-				ax[1].set_xlabel('Time (ns)')
-				ax[1].plot(data.waveform[sh_start:sh_end])
+				# fig, ax = plt.subplots(3, constrained_layout=True)
+				# fig.suptitle(f'Waveform Comparison for Center: E: {np.array(lat_lon).astype(int)[0]} N: {np.array(lat_lon).astype(int)[1]}')
 
-				ax[2].set_title('Complete GEDI Waveform')
-				ax[2].set_ylabel('DN')
-				ax[2].set_xlabel('Time (ns)')
-				ax[2].plot(data.waveform[start:end])
+				# ax[0].set_title('Noise-Free Simluated Waveform')
+				# ax[0].set_ylabel('Intensity')
+				# ax[0].plot(sim_wf.nfw)
 
-				plt.show()
-				plt.close()
+				# ax[1].set_title('Cropped GEDI Waveform')
+				# ax[1].set_ylabel('DN')
+				# ax[1].set_xlabel('Time (ns)')
+				# ax[1].plot(data.waveform[sh_start:sh_end])
+
+				# ax[2].set_title('Complete GEDI Waveform')
+				# ax[2].set_ylabel('DN')
+				# ax[2].set_xlabel('Time (ns)')
+				# ax[2].plot(data.waveform[start:end])
+
+				# plt.show()
+				# plt.close()
+
+	print(f"Mean Corr: {np.average(sim_metrics['corr'])} | StDev: {np.std(sim_metrics['corr'])}")
+	print(f"Mean Abs Bias RH25: {np.average(sim_metrics['rh25'])} | StDev: {np.std(sim_metrics['rh25'])} | RMSE: {np.sqrt(np.average(np.square(sim_metrics['rh25'])))}")
+	print(f"Mean Abs Bias RH50: {np.average(sim_metrics['rh50'])} | StDev: {np.std(sim_metrics['rh50'])} | RMSE: {np.sqrt(np.average(np.square(sim_metrics['rh50'])))}")
+	print(f"Mean Abs Bias RH99: {np.average(sim_metrics['rh99'])} | StDev: {np.std(sim_metrics['rh99'])} | RMSE: {np.sqrt(np.average(np.square(sim_metrics['rh99'])))}")

@@ -6,11 +6,6 @@ import las_tools
 
 # LiDAR Parameters
 FWIDTH = 23	# footprint width in meters
-FWHM = 15	# pulse width
-
-ACROSS_SPACING = 600
-ALONG_SPACING = 60
-
 
 class Block():
 	def __init__(self, img_fn, pc_fn):
@@ -30,15 +25,6 @@ class Pulses():
 		self.pulse_centers = coords
 		self.ret_photons = self.get_photons_in_pulses(block.kdtree)
 		self.ret_ground = self.get_photons_in_pulses(block.gnd_kd)
-
-	def get_pulse_centers(self, block):
-		pulse_centers = []
-
-		for indx in np.arange(int(0.5*FWIDTH), np.shape(block.pos_matrix)[0], ACROSS_SPACING):
-			for indy in np.arange(int(0.5*FWIDTH), np.shape(block.pos_matrix)[1], ALONG_SPACING):
-				pulse_centers.append([block.pos_matrix[indx, indy, 0], block.pos_matrix[indx, indy, 1]])
-
-		return pulse_centers
 
 	def get_photons_in_pulses(self, kdtree):
 		returns = []
