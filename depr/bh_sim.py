@@ -17,9 +17,10 @@ OUTPUT = 'output_bh/'
 
 
 # SIMULATION SPECS
-FWIDTH=23				# footprint width in meters
-FWHM=14					# pulse FWHM in nanoseconds
+FWIDTH=23				# footprint width in meters		/ GEDI=19-25	LVIS=20-24
+FWHM=7					# pulse FWHM in nanoseconds 	/ GEDI=15.6 	LVIS=7
 SIGMA_P = FWHM/2.354	# standard deviation for transmitted pulse
+RESOLUTION = 0.30		# vertical resolution in meters	/ GEDI=0.15m	LVIS=0.30m
 SIGMA_N = 3				# noise standard devation
 
 def gauss_weight(d2, sigma):
@@ -38,13 +39,14 @@ def get_intensity_bins(photons, center, ground=None):
 
 	zmin = int(sample_min-5)
 	zmax = int(sample_max+5)
-	bins = np.arange(zmin, zmax, step=0.15)
+	bins = np.arange(zmin, zmax, step=RESOLUTION)
 	arr = np.zeros((2, len(bins)))
 	arr[0] = bins
 
-	weighted_int = [[p[2], gauss_weight(np.square(p[0]-center[0])+np.square(p[1]-center[1]),sigma=0.25*FWIDTH)] for p in photons]
+	#weighted_int = [[p[2], gauss_weight(np.square(p[0]-center[0])+np.square(p[1]-center[1]),sigma=0.25*FWIDTH)] for p in photons]
+	weighted_int = [[p[2], p[3]*gauss_weight(np.square(p[0]-center[0])+np.square(p[1]-center[1]),sigma=0.25*FWIDTH)] for p in photons]
 	for p in weighted_int:
-		bucket = int(np.ceil((zmax-p[0])/0.15))
+		bucket = int(np.ceil((zmax-p[0])/RESOLUTION))
 		arr[1][bucket] += p[1]
 
 	return arr
@@ -55,7 +57,7 @@ def simulate_waveform(photons, center, noise=True, ground=None):
 	else:
 		intensity_bins = get_intensity_bins(photons, center)
 
-	pulse = [gauss_weight(np.square(n),sigma=SIGMA_P) for n in np.arange(-30,30)] #61ns pulse centered on 0
+	pulse = [gauss_weight(np.square(n),sigma=SIGMA_P) for n in np.arange(-25,25)] #61ns pulse centered on 0
 	nfw = np.convolve(pulse, intensity_bins[1])	# noise-free waveform
 	res = [nfw]
 
@@ -65,7 +67,7 @@ def simulate_waveform(photons, center, noise=True, ground=None):
 
 	return res
 
-def get_rh_metrics(signal):
+def get_rh_metrics(signal, ground):
 	total_energy = np.sum(signal)
 	energy_int = np.array(np.cumsum(signal[::-1])/total_energy)
 	energy_int = energy_int[::-1]
@@ -73,9 +75,9 @@ def get_rh_metrics(signal):
 
 	energy_bounds = [0.02, 0.25, 0.5, 0.75, 0.98]
 	ind = [np.argwhere(energy_int>i).max() for i in energy_bounds]
-	print(ind)
+	ind = (ground-ind)*0.15
+	#print(ind)
 	return ind
-
 
 
 # ========== / For testing / ==========
@@ -121,7 +123,7 @@ def simulate_block(block, noise=True, saveFiles=False):
 		bin_size = [np.min(photons[:,2]), np.max(photons[:,2])]
 		res.append(simulate_waveform(ground, center, noise=False, ground=bin_size)[0])
 
-		ind = get_rh_metrics(res[0])
+		ind = get_rh_metrics(res[0], np.argmax(res[-1]))
 
 		svf = None
 		if saveFiles:
@@ -134,6 +136,6 @@ if __name__ == '__main__':
 	pc_fn = f'{TARGET}lidar/NEON_D17_SJER_DP1_{BLOCK}_classified_point_cloud_colorized.laz'
 
 	block = gedi_block.Block(img_fn,pc_fn)
-	block.photons[:,3] = block.photons[:,3]/100		#scale intensity values
+	#block.photons[:,3] = block.photons[:,3]/100		#scale intensity values
 
 	simulate_block(block)
