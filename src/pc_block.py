@@ -5,7 +5,7 @@ import numpy as np
 import las_tools
 
 # LiDAR Parameters
-FWIDTH = 23	# footprint width in meters
+# FWIDTH = 23	# footprint width in meters
 
 class Block():
 	def __init__(self, img_fn, pc_fn):
@@ -20,17 +20,16 @@ class Coll_Photons():
 		self.photons = photons
 
 class Pulses():
-	def __init__(self, block, coords):
-		#self.pulse_centers = self.get_pulse_centers(block)
+	def __init__(self, block, coords, config):
 		self.pulse_centers = coords
-		self.ret_photons = self.get_photons_in_pulses(block.kdtree)
-		self.ret_ground = self.get_photons_in_pulses(block.gnd_kd)
+		self.ret_photons = self.get_photons_in_pulses(block.kdtree, config)
+		self.ret_ground = self.get_photons_in_pulses(block.gnd_kd, config)
 
-	def get_photons_in_pulses(self, kdtree):
+	def get_photons_in_pulses(self, kdtree, config):
 		returns = []
 
 		for indx in range(np.shape(self.pulse_centers)[0]):
-			photons = kdtree.query_ball_point([self.pulse_centers[indx][0], self.pulse_centers[indx][1]], r=0.5*FWIDTH)
+			photons = kdtree.query_ball_point([self.pulse_centers[indx][0], self.pulse_centers[indx][1]], r=0.5*config['fwidth'])
 			returns.append(Coll_Photons(self.pulse_centers[indx], photons))
 
 		return returns

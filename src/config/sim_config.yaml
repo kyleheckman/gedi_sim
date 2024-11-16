@@ -1,0 +1,12 @@
+sim_config:
+  gedi_config:
+    fwidth: 25            # footprint width [m]
+    fwhm: 15.6            # pulse width [ns]
+    across_spacing: 600   # pulse spacing across tracks [m]
+    along_spacing: 60     # pulse spacing along a track [m]
+    resolution: 0.15      # digitizer resolution [m]
+
+  lvis_config:
+    fwidth: 10            # footpring width [m]
+    fwhm: 7               # pulse width [ns]
+    resolution: 0.30      # digitizer resolution [m]
