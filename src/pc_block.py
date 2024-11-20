@@ -4,9 +4,6 @@ sys.path.append('src/')
 import numpy as np
 import las_tools
 
-# LiDAR Parameters
-# FWIDTH = 23	# footprint width in meters
-
 class Block():
 	def __init__(self, img_fn, pc_fn):
 		self.img_file = img_fn
@@ -29,7 +26,7 @@ class Pulses():
 		returns = []
 
 		for indx in range(np.shape(self.pulse_centers)[0]):
-			photons = kdtree.query_ball_point([self.pulse_centers[indx][0], self.pulse_centers[indx][1]], r=0.5*config['fwidth'])
+			photons = kdtree.query_ball_point([self.pulse_centers[indx][0], self.pulse_centers[indx][1]], r=0.5*config['sim_config']['gedi_config']['fwidth'])
 			returns.append(Coll_Photons(self.pulse_centers[indx], photons))
 
 		return returns
