@@ -14,4 +14,4 @@ sim_config:
 hhdc_config:
   square_size: 20         # square size (x,y) [m]
   cube_height: 0.15       # cube height [m]
-  height_bins: 512
+  height_bins: 1024

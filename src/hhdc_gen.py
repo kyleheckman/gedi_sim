@@ -24,25 +24,28 @@ def get_hhdc_centers(block, config):
 def prep_waveform(waveform, z_min, block_z_min, config):
 	col_wf = waveform.nfw / np.sum(waveform.nfw)
 	col_wf = col_wf[np.min(np.argwhere(col_wf != 0)):waveform.rh_idx[0]+1]
-	print(len(col_wf))
-
 
 	shift = int((z_min - block_z_min) / config['sim_config']['gedi_config']['resolution'])
-	column = np.zeros((config['hhdc_config']['height_bins']))
+	column = np.zeros((config['hhdc_config']['height_bins']), dtype=np.uint16)
 
-	column[shift:shift+len(col_wf)] = col_wf
+	print(f'Shift {shift}')
+
+	column[shift:shift+len(col_wf)] = col_wf[::-1]
 
 	return column
 	
-def disp_dem(hhdc_slice, bounds, config):
+def disp_dem(hhdc_slice, bounds, fn, indx, z_min, config):
 	bins = config['hhdc_config']['height_bins']
 	resolution = config['sim_config']['gedi_config']['resolution']
 
 	fig, ax = plt.subplots()
 
-	ax.imshow(hhdc_slice[::-1].T, aspect=12, interpolation='none', cmap=matplotlib.colormaps['Greens'], extent=[bounds.left,bounds.right,0,bins*resolution])
+	ax.imshow(hhdc_slice.T[::-1], aspect=5, interpolation='none', cmap=matplotlib.colormaps['Greens'], extent=[bounds.left,bounds.right,0,bins*resolution])
+	ax.set_title(f'Digital Elevation Model for Across Track Slice {indx}')
+	ax.set_ylabel(f'Height from Reference Ground: {np.round(z_min,1)} [m]')
+	ax.set_xlabel(f'Along Track Coordinate [m]')
 
-	plt.show()
+	plt.savefig(fn)
 	plt.close()
 
 if __name__ == '__main__':
@@ -55,18 +58,16 @@ if __name__ == '__main__':
 
 	diz_path = os.path.dirname(os.path.realpath(__file__))
 	config = OmegaConf.load(f'{diz_path}/config/sim_config.yaml')
-	print(config)
 
 	block = pc_block.Block(img_fn, pc_fn)
 	centers = get_hhdc_centers(block, config)
 
-	hhdc = np.zeros((np.shape(centers)[0], np.shape(centers)[1], config['hhdc_config']['height_bins']))
+	hhdc = np.zeros((np.shape(centers)[0], np.shape(centers)[1], config['hhdc_config']['height_bins']), dtype=np.uint16)
 	centers = np.concatenate(centers, axis=0)
 
 	pulses = pc_block.Pulses(block, centers, config)
 
 	block_z_min = np.min(block.photons[:,2])
-	#block_z_max = np.max(block.photons[:,2])
 
 	for indx in range(np.shape(centers)[0]):
 		print(f'Processing block {indx} / {np.shape(centers)[0]} ...')
@@ -84,5 +85,8 @@ if __name__ == '__main__':
 		hhdc[iy, ix, :] = column
 
 		if (indx + 1) % np.shape(hhdc)[0] == 0:
+			fn = f'{output}dem_{bl.split('_')[0]}-{bl.split('_')[1]}_slice-{(iy*20)+10}'
+			disp_dem(hhdc[iy], block.bounds, fn, iy, block_z_min, config)
 
-			disp_dem(hhdc[iy], block.bounds, config)
+	fn = f'{output}SJER_{bl}_hhdc_20x20_gridded.npy'
+	np.save(fn, hhdc)
