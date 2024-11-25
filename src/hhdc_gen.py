@@ -26,7 +26,7 @@ def prep_waveform(waveform, z_min, block_z_min, config):
 	col_wf = col_wf[np.min(np.argwhere(col_wf != 0)):waveform.rh_idx[0]+1]
 
 	shift = int((z_min - block_z_min) / config['sim_config']['gedi_config']['resolution'])
-	column = np.zeros((config['hhdc_config']['height_bins']), dtype=np.uint16)
+	column = np.zeros((config['hhdc_config']['height_bins']), dtype=np.float16)
 
 	print(f'Shift {shift}')
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 	block = pc_block.Block(img_fn, pc_fn)
 	centers = get_hhdc_centers(block, config)
 
-	hhdc = np.zeros((np.shape(centers)[0], np.shape(centers)[1], config['hhdc_config']['height_bins']), dtype=np.uint16)
+	hhdc = np.zeros((np.shape(centers)[0], np.shape(centers)[1], config['hhdc_config']['height_bins']), dtype=np.float16)
 	centers = np.concatenate(centers, axis=0)
 
 	pulses = pc_block.Pulses(block, centers, config)
