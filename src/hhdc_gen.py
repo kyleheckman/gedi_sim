@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import os
 from omegaconf import OmegaConf
 import concurrent.futures
+from tqdm import tqdm
+import itertools
 
 import simulation
 import pc_block
@@ -27,11 +29,15 @@ def prep_waveform(waveform, z_min, block_z_min, config):
 	col_wf = col_wf[np.min(np.argwhere(col_wf != 0)):np.max(np.argwhere(col_wf != 0))+1]
 
 	shift = int((z_min - block_z_min) / config['sim_config']['gedi_config']['resolution'])
+	shift = 0
+	
 	column = np.zeros((config['hhdc_config']['height_bins']), dtype=np.float32)
 
-	print(f'Shift {shift}')
+	try:
+		column[shift:shift+len(col_wf)] = col_wf[::-1]
+	except Exception as e:
+		print(f'Error | {e}')
 
-	column[shift:shift+len(col_wf)] = col_wf[::-1]
 
 	return column
 	
@@ -69,21 +75,7 @@ def get_fn_pairs(data_dir):
 
 	return full_kms_fn
 
-def process_pulse(data, block, pulses, indx, block_z_min, centers, img_fn, config):
-	print(f'Processing {img_fn} | {indx} / {np.shape(centers)[0]} ...')
-	if len(pulses.ret_photons[indx].photons) == 0:
-		column = np.zeros((config['hhdc_config']['height_bins']), dtype=np.float32) 
-	else:
-		sim_wf = simulation.Waveform(block.photons, pulses.ret_photons[indx], block.ground, pulses.ret_ground[indx], config)
-		z_min = np.min(block.photons[pulses.ret_photons[indx].photons][:,2])
-
-		column = prep_waveform(sim_wf, z_min, block_z_min, config)
-	
-	data[indx] = column
-		
-
 def run_sim(fn_pair, output, config):
-	print(fn_pair)
 	img_fn = fn_pair[0]
 	pc_fn = fn_pair[1]
 
@@ -99,102 +91,59 @@ def run_sim(fn_pair, output, config):
 
 	block_z_min = np.min(block.photons[:,2])
 
-	futures_data = {}
+	for indx in range(np.shape(centers)[0]):
+		if len(pulses.ret_photons[indx].photons) == 0:
+			continue
 
-# futures
+		sim_wf = simulation.Waveform(block.photons, pulses.ret_photons[indx], block.ground, pulses.ret_ground[indx], config)
+		z_min = np.min(block.photons[pulses.ret_photons[indx].photons][:,2])
 
-	# for indx in range(np.shape(centers)[0]):
-	# 	print(f'Processing {img_fn} | {indx} / {np.shape(centers)[0]} ...')
-	# 	if len(pulses.ret_photons[indx].photons) == 0:
-	# 		continue
-
-	# 	sim_wf = simulation.Waveform(block.photons, pulses.ret_photons[indx], block.ground, pulses.ret_ground[indx], config)
-	# 	z_min = np.min(block.photons[pulses.ret_photons[indx].photons][:,2])
-
-	# 	column = prep_waveform(sim_wf, z_min, block_z_min, config)
+		column = prep_waveform(sim_wf, z_min, block_z_min, config)
 		
-	# 	ix = indx % np.shape(hhdc)[0]
-	# 	iy = int(indx / np.shape(hhdc)[1])
+		ix = indx % np.shape(hhdc)[0]
+		iy = int(indx / np.shape(hhdc)[1])
 
-	# 	hhdc[iy, ix, :] = column
-
-# futures
-
-	with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-		futures = []
-		for indx in range(np.shape(centers)[0]):
-			future = executor.submit(process_pulse, futures_data, block, pulses, indx, block_z_min, centers, img_fn, config)
-			futures.append(future)
-
-		concurrent.futures.wait(futures)
-
-	for key,value in futures_data:
-		ix = key % np.shape(hhdc)[0]
-		iy = int(key / np.shape(hhdc)[1])
-
-		hhdc[iy, ix, :] = value
-
-		# if (indx + 1) % np.shape(hhdc)[0] == 0:
-		# 	fn = f'{output}dem_{bl.split('_')[0]}-{bl.split('_')[1]}_slice-{(iy*20)+10}'
-		# 	disp_dem(hhdc[iy], block.bounds, fn, iy, block_z_min, config)
+		hhdc[iy, ix, :] = column
 
 	fn = f'{output}SJER_{bl}_cc_hhdc_20x20_gridded.npy'
 	np.save(fn, hhdc)
+	return fn
 
 if __name__ == '__main__':
 	target = 'data/raw/SJER/2023-04/'
 	bl = '252000_4109000'
 	output = 'output_hhdc_cc/'
 
+	# True if concurrency enabled
+	cc = False
+
 	fn_pairs = get_fn_pairs(target)
+	print(fn_pairs)
 
 	diz_path = os.path.dirname(os.path.realpath(__file__))
 	config = OmegaConf.load(f'{diz_path}/config/sim_config.yaml')
-	
-	km_fn = fn_pairs[0]
-	run_sim(km_fn, output, config)
 
-	# with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
-	# 	print(executor)
-	# 	try:
-	# 		for km_fn in fn_pairs:
-	# 			futures = executor.submit(run_sim, km_fn, output, config)
+	if cc:
+		max_workers = 5
+		fn_pairs_iter = iter(fn_pairs)
+		with tqdm(total=len(fn_pairs)) as pbar:
 
-	# 	except Exception as e:
-	# 		print(f'An error has occurred: {e}')
+			with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+				futures = {executor.submit(run_sim, km_fn, output, config) for km_fn in itertools.islice(fn_pairs_iter, max_workers)}
+				print(len(futures))
 
-	# img_fn = f'{target}camera/2023_SJER_6_{bl}_image.tif'
-	# pc_fn = f'{target}lidar/NEON_D17_SJER_DP1_{bl}_classified_point_cloud_colorized.laz'
+				while len(futures) > 0:
+					done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+
+					for fut in done:
+						print(f'\n{len(futures)}\nTask {fut} completed w/ result: {fut.result()}')
+						
+						pbar.update(1)
 
 
-	# block = pc_block.Block(img_fn, pc_fn)
-	# centers = get_hhdc_centers(block, config)
-
-	# hhdc = np.zeros((np.shape(centers)[0], np.shape(centers)[1], config['hhdc_config']['height_bins']), dtype=np.float16)
-	# centers = np.concatenate(centers, axis=0)
-
-	# pulses = pc_block.Pulses(block, centers, config)
-
-	# block_z_min = np.min(block.photons[:,2])
-
-	# for indx in range(np.shape(centers)[0]):
-	# 	print(f'Processing block {indx} / {np.shape(centers)[0]} ...')
-	# 	if len(pulses.ret_photons[indx].photons) == 0:
-	# 		continue
-
-	# 	sim_wf = simulation.Waveform(block.photons, pulses.ret_photons[indx], block.ground, pulses.ret_ground[indx], config)
-	# 	z_min = np.min(block.photons[pulses.ret_photons[indx].photons][:,2])
-
-	# 	column = prep_waveform(sim_wf, z_min, block_z_min, config)
-		
-	# 	ix = indx % np.shape(hhdc)[0]
-	# 	iy = int(indx / np.shape(hhdc)[1])
-
-	# 	hhdc[iy, ix, :] = column
-
-	# 	if (indx + 1) % np.shape(hhdc)[0] == 0:
-	# 		fn = f'{output}dem_{bl.split('_')[0]}-{bl.split('_')[1]}_slice-{(iy*20)+10}'
-	# 		disp_dem(hhdc[iy], block.bounds, fn, iy, block_z_min, config)
-
-	# fn = f'{output}SJER_{bl}_hhdc_20x20_gridded.npy'
-	# np.save(fn, hhdc)
+					for km_fn in itertools.islice(fn_pairs_iter, len(done)):
+						futures.add(executor.submit(run_sim, km_fn, output, config))
+	else:
+		for km_fn in fn_pairs:
+			res = run_sim(km_fn, output, config)
+			print(f'Completed {res}')

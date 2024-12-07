@@ -38,12 +38,15 @@ class Waveform():
 		energy_int = energy_int[::-1]
 
 
-		energy_marks = [0.02, 0.25, 0.5, 0.75, 0.98]
+		energy_marks = [0.02, 0.25, 0.4, 0.5, 0.6, 0.7, 0.8, 0.98]
 
 		indx = [np.argwhere(energy_int>=i).max() for i in energy_marks]
-		height_adjusted = (np.argmax(self.gnd)-indx)*config['sim_config']['gedi_config']['resolution']
+		idx_dict = {energy_marks[i]: indx[i] for i in range(len(indx))}
 
-		return indx, height_adjusted
+		height_adjusted = (np.argmax(self.gnd)-indx)*config['sim_config']['gedi_config']['resolution']
+		rh_dict = {energy_marks[i]: height_adjusted[i] for i in range(len(height_adjusted))}
+
+		return idx_dict, rh_dict
 
 	def get_waveforms(self, photons, collected, gnd_phot, ground, config):
 		sel_photons = photons[collected.photons]
