@@ -19,6 +19,7 @@ hhdc_config:
 directory:
   raw_data_dir: 'data/raw/SJER/2023-04/'
   output_dir: 'output_agbd/'
+  output_hhdc: 'output_hhdc/'
 
 concurrent:
-  workers_max: 4
+  workers_max: 2

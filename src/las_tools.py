@@ -49,6 +49,9 @@ def get_pc_data(pc_path, includeColor=False, generate_kdtree=True):
 
     # remove class 7
     photons = photons[lidar.classification != 7]
+    
+    photons = photons[::100]
+    ground = ground[::100]
 
     if generate_kdtree:
         kdtree = KDTree(photons[...,:2])

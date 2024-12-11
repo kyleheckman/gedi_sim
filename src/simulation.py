@@ -5,15 +5,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from omegaconf import OmegaConf
+from scipy.signal import argrelextrema
 
 import pc_block
 
 def gauss_weight(d2, sigma):
 	return np.exp(-1*d2/(2*np.square(sigma)))/(np.sqrt(2*np.pi)*sigma)
 
-def get_bins(photons):
-		zmin = int(np.min(photons[:,2])-5)
-		zmax = int(np.max(photons[:,2])+5)
+def get_bins(photons, ground):
+		#print(photons)
+		#print(ground)
+		
+		zmin = np.min(int(np.min(photons[:,2])-5))
+		zmax = np.max(int(np.max(photons[:,2])+5))
+
+		if len(ground) != 0:
+			zmin = np.min([int(np.min(ground[:,2])-5), zmin])
+			zmax = np.max([int(np.max(ground[:,2])+5), zmax])
+
+		#print((gmin, gmax))
+
+		#tmp = (np.min([gmin, zmin]), np.max([gmax, zmax]))
+		#print(tmp)
+
 		return (zmin, zmax)
 
 def get_centers(block, config):
@@ -24,7 +38,20 @@ def get_centers(block, config):
 			centers.append([block.pos_matrix[indx, indy, 0], block.pos_matrix[indx, indy, 1]])
 
 	return centers
+# // TEMP
+def get_hhdc_centers(block, config):
+	square_size = config['hhdc_config']['square_size']
+	
+	# Generate meshgrid for pulse centers, origin is offset by half of square size
+	x_dim = np.arange(block.bounds.left+(square_size/2), block.bounds.right, step=square_size)
+	y_dim = np.arange(block.bounds.bottom+(square_size/2), block.bounds.top, step=square_size)
+	x_coords, y_coords = np.meshgrid(x_dim, y_dim)
 
+	# Convert meshgrid to a list of centers
+	centers = np.dstack((x_coords, y_coords))
+	
+	return centers
+# // TEMP
 class Waveform():
 	def __init__(self, photons, collected, gnd_phot, ground, config):
 		self.nfw, self.gnd = self.get_waveforms(photons, collected, gnd_phot, ground, config)
@@ -55,18 +82,29 @@ class Waveform():
 		if len(sel_photons) == 0:
 			return None, None
 
-		bounds = get_bins(sel_photons)
+		bounds = get_bins(sel_photons, sel_ground)
 		nfw = self.simulate(sel_photons, collected.center, bounds, config)
-		gnd = self.simulate(sel_ground, ground.center, bounds, config)
+
+		gnd = np.zeros((int((bounds[1]-bounds[0])/config['sim_config']['gedi_config']['resolution'])))
+		idx = argrelextrema(nfw, np.greater)[-1][-1]
+		gnd[idx] = nfw[idx]
+
+		if len(sel_ground) != 0:
+			gnd = self.simulate(sel_ground, ground.center, bounds, config)
+
 		return nfw, gnd
 
 	def simulate(self, photons, center, bounds, config):
 		arr = np.zeros((int((bounds[1]-bounds[0])/config['sim_config']['gedi_config']['resolution'])))
 
+		#print(f'B1 {bounds[1]} | B2 {bounds[0]} | ARR {len(arr)}')
+
 		weighted_intensity = [[p[2], p[3]*gauss_weight(np.square(p[0]-center[0])+np.square(p[1]-center[1]),sigma=0.25*config['sim_config']['gedi_config']['fwidth'])] for p in photons]
 		for pair in weighted_intensity:
+			#print(f'B1 {bounds[1]} | B2 {pair[0]}')
 			bucket = int(np.ceil((bounds[1]-pair[0])/config['sim_config']['gedi_config']['resolution']))
 			arr[bucket] += pair[1]
+			
 
 		pulse = pulse = [gauss_weight(np.square(n),sigma=config['sim_config']['gedi_config']['fwhm']/2.354) for n in np.arange(-25,25)]
 		nfw = np.convolve(pulse, arr)
@@ -80,20 +118,20 @@ def plot_waveforms(waveform):
 	ax.plot(waveform.nfw)
 	#ax.plot(waveform.gnd)
 
-	for indx in waveform.rh_idx:
-		ax.axvline(x=indx, color='r')
+	for rh in waveform.rh_idx:
+		ax.axvline(x=waveform.rh_idx[rh], color='r')
 	plt.show()
 	plt.close()
 
 if __name__ == '__main__':
 	target = 'data/raw/SJER/2023-04/'
-	bl = '251000_4106000'
+	bl = '258000_4113000'
 	output = 'output_ref/'
 
 	if not os.path.exists(output):
 		os.makedirs(output)
 
-	img_fn = f'{target}camera/2023_SJER_6_{bl}_image.tif'
+	img_fn = f'{target}camera/2021_SJER_5_{bl}_image.tif'
 	pc_fn = f'{target}lidar/NEON_D17_SJER_DP1_{bl}_classified_point_cloud_colorized.laz'
 
 	diz_path = os.path.dirname(os.path.realpath(__file__))
@@ -101,15 +139,21 @@ if __name__ == '__main__':
 	print(config)
 
 	block = pc_block.Block(img_fn, pc_fn)
-	centers = get_centers(block, config)
+	#centers = get_centers(block, config)
+	centers = get_hhdc_centers(block, config)
+	centers = np.concatenate(centers, axis=0)[2060:]
+	print(len(centers))
 	pulses = pc_block.Pulses(block, centers, config)
 
+	#print(len(pulses.pulse_centers))
 	for indx in range(len(pulses.pulse_centers)):
+		print(indx)
 		if len(pulses.ret_photons[indx].photons) == 0:
 			continue
 
 		sim_wf = Waveform(block.photons, pulses.ret_photons[indx], block.ground, pulses.ret_ground[indx], config)
+		#print(sim_wf)
 		if sim_wf.nfw is None:
 			continue
 		print(sim_wf.rh)
-		plot_waveforms(sim_wf)
+		#plot_waveforms(sim_wf)

@@ -86,10 +86,6 @@ def run_sim(fn_pair, config):
 	np.save(fn, agbd)
 	return fn
 
-def pop_all(l):
-	r, l[:] = l[:], []
-	return r
-
 if __name__ == '__main__':
 	diz_path = os.path.dirname(os.path.realpath(__file__))
 	config = OmegaConf.load(os.path.join(diz_path, 'config/sim_config.yaml'))
@@ -99,7 +95,7 @@ if __name__ == '__main__':
 
 	fn_pairs = get_fn_pairs(config['directory']['raw_data_dir'])
 
-	pair_iter = iter(fn_pairs[14:])
+	pair_iter = iter(fn_pairs)
 
 	with concurrent.futures.ProcessPoolExecutor(max_workers=config['concurrent']['workers_max']) as executor:
 		futures = {
@@ -115,9 +111,11 @@ if __name__ == '__main__':
 
 			for fut in done:
 				task = futures.pop(fut)
-				print(f'Completed km {fut.result()}')
+				try:
+					print(f'Completed km {fut.result()}')
+				except Exception as e:
+					print(f'Completed {task} w/ exception {e}')
 			
 			for km_fn in itertools.islice(pair_iter, len(done)):
 				fut = executor.submit(run_sim, km_fn, config)
 				futures[fut] = km_fn
-				print(futures)
