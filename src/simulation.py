@@ -85,12 +85,16 @@ class Waveform():
 		bounds = get_bins(sel_photons, sel_ground)
 		nfw = self.simulate(sel_photons, collected.center, bounds, config)
 
-		gnd = np.zeros((int((bounds[1]-bounds[0])/config['sim_config']['gedi_config']['resolution'])))
+		#gnd = np.zeros((int((bounds[1]-bounds[0])/config['sim_config']['gedi_config']['resolution'])))
+		gnd = np.zeros((len(nfw)), dtype=np.float32)
+		
 		idx = argrelextrema(nfw, np.greater)[-1][-1]
 		gnd[idx] = nfw[idx]
 
-		if len(sel_ground) != 0:
-			gnd = self.simulate(sel_ground, ground.center, bounds, config)
+		# ========== / Disable ground compare for now
+		# ========== / Ground to be computed as the peak of the lowest mode in nfw
+		# if len(sel_ground) != 0:
+		# 	gnd = self.simulate(sel_ground, ground.center, bounds, config)
 
 		return nfw, gnd
 
@@ -105,7 +109,6 @@ class Waveform():
 			bucket = int(np.ceil((bounds[1]-pair[0])/config['sim_config']['gedi_config']['resolution']))
 			arr[bucket] += pair[1]
 			
-
 		pulse = pulse = [gauss_weight(np.square(n),sigma=config['sim_config']['gedi_config']['fwhm']/2.354) for n in np.arange(-25,25)]
 		nfw = np.convolve(pulse, arr)
 

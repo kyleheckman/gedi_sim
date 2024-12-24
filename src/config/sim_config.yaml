@@ -4,7 +4,7 @@ sim_config:
     fwhm: 15.6            # pulse width [ns]
     across_spacing: 600   # pulse spacing across tracks [m]
     along_spacing: 60     # pulse spacing along a track [m]
-    resolution: 0.15      # digitizer resolution [m]
+    resolution: 0.5      # digitizer resolution [m]  (default=0.15)
 
   lvis_config:
     fwidth: 10            # footpring width [m]
@@ -12,14 +12,14 @@ sim_config:
     resolution: 0.30      # digitizer resolution [m]
 
 hhdc_config:
-  square_size: 20         # square size (x,y) [m]
-  cube_height: 0.15       # cube height [m]
-  height_bins: 1024
+  square_size: 7.8125         # square size (x,y) [m] (default=20)
+  cube_height: 0.5            # cube height [m] (default=0.15)
+  height_bins: 512            # number of height bins (default=1024)
 
 directory:
-  raw_data_dir: 'data/raw/SJER/2023-04/'
+  raw_data_dir: 'd:/neon_raw/BART/2022-08'
   output_dir: 'output_agbd/'
-  output_hhdc: 'output_hhdc/'
+  output_hhdc: 'output_hhdc_512x128x128/'
 
 concurrent:
-  workers_max: 2
+  workers_max: 4

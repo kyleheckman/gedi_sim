@@ -5,11 +5,11 @@ import numpy as np
 import las_tools
 
 class Block():
-	def __init__(self, img_fn, pc_fn):
+	def __init__(self, img_fn, pc_fn, downsample=None):
 		self.img_file = img_fn
 		self.pc_file = pc_fn
 		self.pos_matrix, self.bounds = las_tools.get_pos_matrix(img_fn)
-		self.kdtree, self.photons, self.gnd_kd, self.ground = las_tools.get_pc_data(self.pc_file, generate_kdtree=True)
+		self.kdtree, self.photons, self.gnd_kd, self.ground = las_tools.get_pc_data(self.pc_file, generate_kdtree=True, downsample=downsample)
 
 class Coll_Photons():
 	def __init__(self, center, photons):

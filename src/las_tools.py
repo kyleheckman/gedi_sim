@@ -38,7 +38,7 @@ class Lidar():
         self.green = lasData.green
         self.blue = lasData.blue
 
-def get_pc_data(pc_path, includeColor=False, generate_kdtree=True):
+def get_pc_data(pc_path, includeColor=False, generate_kdtree=True, downsample=None):
     lidar = Lidar(pc_path)
 
     photons = np.concatenate([lidar.points.T, lidar.intensity.reshape(-1, 1)], axis=1)
@@ -50,8 +50,12 @@ def get_pc_data(pc_path, includeColor=False, generate_kdtree=True):
     # remove class 7
     photons = photons[lidar.classification != 7]
     
-    photons = photons[::100]
-    ground = ground[::100]
+    factor = 1
+    if downsample is not None:
+        factor = downsample
+
+    photons = photons[::factor]
+    ground = ground[::factor]
 
     if generate_kdtree:
         kdtree = KDTree(photons[...,:2])

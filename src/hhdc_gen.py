@@ -13,6 +13,14 @@ import itertools
 import simulation
 import pc_block
 
+def reshape(hhdc):
+	new_hhdc = np.zeros((np.shape(hhdc)[-1], np.shape(hhdc)[0], np.shape(hhdc)[1]), dtype=np.float32)
+	for r in range(np.shape(hhdc)[0]):
+		for c in range(np.shape(hhdc)[1]):
+			for h in range(np.shape(hhdc)[-1]):
+				new_hhdc[h,c,r] = hhdc[c,r,-(h+1)]
+	return new_hhdc
+
 def get_hhdc_centers(block, config):
 	square_size = config['hhdc_config']['square_size']
 	
@@ -67,7 +75,7 @@ def disp_dem(hhdc_slice, bounds, fn, indx, z_min, config):
 	plt.close()
 
 def get_fn_pairs(data_dir):
-	cam_files_dir = os.path.join(data_dir, 'test/')
+	cam_files_dir = os.path.join(data_dir, 'camera/')
 	laz_files_dir = os.path.join(data_dir, 'lidar/')
 
 	cam_files = [f for f in os.listdir(cam_files_dir) if os.path.isfile(os.path.join(cam_files_dir, f))]
@@ -92,9 +100,9 @@ def run_sim(fn_pair, config):
 
 	bl = '_'.join(img_fn.split('_')[-3:-1])
 
-	print(f'Running {bl} ...')
+	print(f'Simulating block {bl} ...')
 
-	block = pc_block.Block(img_fn, pc_fn)
+	block = pc_block.Block(img_fn, pc_fn, downsample=100)
 	centers = get_hhdc_centers(block, config)
 
 	hhdc = np.zeros((np.shape(centers)[0], np.shape(centers)[1], config['hhdc_config']['height_bins']), dtype=np.float32)
@@ -106,7 +114,7 @@ def run_sim(fn_pair, config):
 	block_z_min = np.min(block.photons[:,2])
 
 	for indx in range(np.shape(centers)[0]):
-		print(f'Computing center {indx}/{np.shape(centers)[0]} ...')
+		#print(f'Computing center {indx}/{np.shape(centers)[0]} ...')
 		if len(pulses.ret_photons[indx].photons) == 0:
 			continue
 
@@ -121,13 +129,20 @@ def run_sim(fn_pair, config):
 
 		hhdc[iy, ix, :] = column
 
-	fn = f"{config['directory']['output_hhdc']}SJER_{bl}_hhdc_20x20_gridded.npy"
+	# Only save hhdcs at least 90% populated
+	if np.sum(hhdc) < 0.9 * hhdc.shape[0] * hhdc.shape[1]:
+		return f'{bl} unsaved'
+
+	# reshape from H, W, C -> C, H, W
+	hhdc = reshape(hhdc)
+
+	fn = f"{config['directory']['output_hhdc']}{img_fn.split('_')[-5]}_{bl}_hhdc_{np.shape(hhdc)[1]}x{np.shape(hhdc)[-1]}_gridded.npy"
 	np.save(fn, hhdc)
 	return fn
 
 if __name__ == '__main__':
 	# True if concurrency enabled
-	cc = False
+	cc = True
 
 	diz_path = os.path.dirname(os.path.realpath(__file__))
 	config = OmegaConf.load(f'{diz_path}/config/sim_config.yaml')
@@ -141,7 +156,7 @@ if __name__ == '__main__':
 
 	count = 0
 	if cc:
-		fn_pairs_iter = iter(fn_pairs[135:])
+		fn_pairs_iter = iter(fn_pairs[:])
 
 		with concurrent.futures.ProcessPoolExecutor(max_workers=config['concurrent']['workers_max']) as executor:
 			futures = {
