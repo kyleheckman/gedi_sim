@@ -15,6 +15,7 @@ hhdc_config:
   square_size: 7.8125         # square size (x,y) [m] (default=20)
   cube_height: 0.5            # cube height [m] (default=0.15)
   height_bins: 512            # number of height bins (default=1024)
+  elevation_shift: False
 
 directory:
   raw_data_dir: 'd:/neon_raw/BART/2022-08'

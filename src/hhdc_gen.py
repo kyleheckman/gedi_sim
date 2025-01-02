@@ -40,20 +40,18 @@ def prep_waveform(waveform, z_min, block_z_min, config):
 	col_wf = waveform.nfw / np.sum(waveform.nfw)
 	col_wf = col_wf[np.min(np.argwhere(col_wf != 0)):np.max(np.argwhere(col_wf != 0))+1][::-1]
 
-	# Calculate height offset for waveform
-	shift = int((z_min - block_z_min) / config['sim_config']['gedi_config']['resolution'])
+	# Calculate height offset for waveform if ELEVATION_SHIFT == True
+	shift = 0
+	if config['hhdc_config']['elevation_shift']:
+		shift = int((z_min - block_z_min) / config['sim_config']['gedi_config']['resolution'])
 
 	column = np.zeros((config['hhdc_config']['height_bins']), dtype=np.float32)
 
-	#print(f'BEFORE {shift + len(col_wf)}')
-
-	# Crop waveform to fit HHDC height limit (not ideal - dirty method for now)
+	# Crop waveform to fit HHDC height limit (not ideal - simple method for now)
 	while shift + len(col_wf) >= config['hhdc_config']['height_bins']:
 		col_wf = col_wf[:-1]
 		if len(col_wf) == 0:
 			break
-	
-	#print(f'AFTER {shift + len(col_wf)}')
 
 	column[shift:shift + len(col_wf)] = col_wf
 
